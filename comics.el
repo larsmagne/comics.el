@@ -25,6 +25,152 @@
 
 ;;; Code:
 
+(defun comics-gather-data (publisher times)
+  (let* ((url "https://www.comics.org/search/advanced/process/?ind_pub_notes=&rating=&pages_uncertain=&letters=&brand_group=&series=&binding=&feature=&issue_notes=&synopsis=&colors=&keywords=&isbn=&tracking_notes=&job_number=&issues=&paper_stock=&issue_reprinted=&dimensions=&title=&is_comics=&series_notes=&indicia_publisher=&pub_name=%s&is_indexed=&reprint_notes=&start_date=&pub_notes=&inks=&issue_title=&end_date=&variant_name=&brand_notes=&price=&barcode=&issue_date=&volume=&brand_emblem=&pages=&characters=&genre=&issue_pages=&order2=series&order3=&color=&order1=date&pencils=&target=series&publishing_format=&story_editing=&notes=&is_surrogate=&issue_count=&issue_pages_uncertain=&method=icontains&script=&issue_editing=&logic=False&is_variant=&series_year_began=&indicia_frequency=&story_reprinted=&page=%d")
+	 (data
+	  (loop with dom
+		for page from 1 upto times
+		append
+		(with-current-buffer (url-retrieve-synchronously (format url publisher page))
+		  (goto-char (point-min))
+		  (setq dom (libxml-parse-html-region (point) (point-max)))
+		  (loop for line in (cdr (dom-by-tag (dom-by-tag dom 'table) 'tr))
+			for tds = (dom-non-text-children line)
+			collect (list :publisher (string-trim (dom-texts (nth 1 tds)))
+				      :title (string-trim (dom-texts (nth 2 tds)))
+				      :url (dom-attr (dom-by-tag (nth 2 tds) 'a) 'href)
+				      :year (string-trim (dom-texts (nth 3 tds)))
+				      :issues (string-trim (dom-texts (nth 4 tds)))
+				      :date (string-trim (dom-texts (nth 6 tds)))))))))
+    (with-temp-buffer
+      (pp data (current-buffer))
+      (write-region (point-min) (point-max)
+		    (comics-file publisher)))))
+
+(defun comics-file (publisher)
+  (format "~/.emacs.d/%s.data" publisher))
+
+(defun comics (publisher)
+  (switch-to-buffer "*comics*")
+  (comics-mode)
+  (let ((inhibit-read-only t)
+	(data (with-temp-buffer
+		(insert-file-contents (comics-file publisher))
+		(read (current-buffer)))))
+    (erase-buffer)
+    (dolist (elem data)
+      (comics-line elem))
+    (goto-char (point-min))
+    (setq comics-data data
+	  comics-publisher publisher)
+    nil))
+
+(defun comics-line (elem)
+  (insert (propertize
+	   (format "%s %3d %-20s %-20s %s\n"
+		   (comics-date elem)
+		   (comics-issues elem)
+		   (comics-limit (getf elem :missing "*") 20)
+		   (comics-limit (getf elem :publisher) 20)
+		   (getf elem :title))
+	   'data elem
+	   'face `(:foreground
+		   ,(let ((missing (getf elem :missing "")))
+		      (cond
+		       ((string-match missing "=")
+			"red")
+		       ((string-match missing "-")
+			"#ffffff")
+		       ((string-match missing "")
+			"#808080")
+		       (t
+			"#00a000")))))))
+
+(defun comics-limit (string length)
+  (unless string
+    (setq string ""))
+  (if (> (length string) length)
+      (substring string 0 length)
+    string))
+
+(defvar comics-english-months
+  '("january" "february" "march" "april" "may" "june" "july"
+    "august" "september" "october" "november" "december"))
+
+(defun comics-date (elem)
+  (let* ((year (getf elem :year))
+	 (date (getf elem :date))
+	 (month (car (split-string date)))
+	 (nmonth (position (replace-regexp-in-string "[^a-zA-Z]" "" month)
+			   comics-english-months
+			   :test 'equalp)))
+    (if nmonth
+	(format "%04s-%02d" year (1+ nmonth))
+      (format "%04s-  " year))))		    
+
+(defun comics-issues (elem)
+  (string-to-number (car (split-string (getf elem :issues)))))
+
+(defvar comics-mode-map
+  (let ((map (make-keymap)))
+    (set-keymap-parent map special-mode-map)
+    (define-key map "s" 'comics-sort)
+    (define-key map "w" 'comics-save-title)
+    (define-key map "m" 'comics-edit-missing)
+    map))
+
+(define-derived-mode comics-mode special-mode "Comics"
+  "Major mode for creating comics images.
+
+\\{comics-mode-map}"
+  (setq buffer-read-only t)
+  (setq-local comics-sort t)
+  (setq-local comics-data nil)
+  (setq-local comics-publisher nil))
+
+(defun comics-sort ()
+  (interactive)
+  (let ((inhibit-read-only t))
+    (goto-char (point-min))
+    (sort-subr nil (lambda ()
+		     )
+	       (lambda ()
+		 (forward-line 1))
+	       nil nil
+	       (lambda (k1 k2)
+		 (let ((e1 (get-text-property (car k1) 'data))
+		       (e2 (get-text-property (car k2) 'data)))
+		   (if comics-sort
+		       (string< (getf e1 :title) (getf e2 :title))
+		     (string< (comics-date e1) (comics-date e2)))))))
+  (setq comics-sort (not comics-sort)))
+
+(defun comics-save-title ()
+  (interactive)
+  (let ((elem (get-text-property (point) 'data)))
+    (with-temp-buffer
+      (insert (getf elem :title))
+      (copy-region-as-kill (point-min) (point-max)))))
+
+(defun comics-edit-missing ()
+  (interactive)
+  (let* ((elem (get-text-property (point) 'data))
+	 (missing (read-from-minibuffer (format "Missing issues for %s: " (getf elem :title))
+					(getf elem :missing "")))
+	 (inhibit-read-only t))
+    (plist-put elem :missing missing)
+    (comics-save)
+    (delete-region (line-beginning-position)
+		   (line-beginning-position 2))
+    (comics-line elem)))
+
+(defun comics-save ()
+  (let ((data comics-data)
+	(publisher comics-publisher))
+    (with-temp-buffer
+      (pp data (current-buffer))
+      (write-region (point-min) (point-max)
+		    (comics-file publisher)))))
 
 (provide 'comics)
 
