@@ -67,22 +67,24 @@
 
 (defun comics-line (elem)
   (insert (propertize
-	   (format "%s %3d %-20s %-20s %s\n"
+	   (format "%s %3d %-10s %-15s %s\n"
 		   (comics-date elem)
 		   (comics-issues elem)
-		   (comics-limit (getf elem :missing "*") 20)
-		   (comics-limit (getf elem :publisher) 20)
+		   (comics-limit (getf elem :missing "*") 10)
+		   (comics-limit (getf elem :publisher) 15)
 		   (getf elem :title))
 	   'data elem
 	   'face `(:foreground
 		   ,(let ((missing (getf elem :missing "")))
 		      (cond
-		       ((string-match missing "=")
-			"red")
-		       ((string-match missing "-")
+		       ((string-match "=" missing)
+			"orange")
+		       ((equal missing "+")
+			"#606060")
+		       ((equal missing "-")
 			"#ffffff")
-		       ((string-match missing "")
-			"#808080")
+		       ((equal missing "")
+			"red")
 		       (t
 			"#00a000")))))))
 
@@ -117,13 +119,16 @@
     (define-key map "s" 'comics-sort)
     (define-key map "w" 'comics-save-title)
     (define-key map "m" 'comics-edit-missing)
+    (define-key map "\r" 'comics-visit)
+    (define-key map "=" 'comics-count)
     map))
 
 (define-derived-mode comics-mode special-mode "Comics"
   "Major mode for creating comics images.
 
 \\{comics-mode-map}"
-  (setq buffer-read-only t)
+  (setq buffer-read-only t
+	truncate-lines t)
   (setq-local comics-sort t)
   (setq-local comics-data nil)
   (setq-local comics-publisher nil))
@@ -150,7 +155,8 @@
   (let ((elem (get-text-property (point) 'data)))
     (with-temp-buffer
       (insert (getf elem :title))
-      (copy-region-as-kill (point-min) (point-max)))))
+      (copy-region-as-kill (point-min) (point-max))
+      (message "Copied '%s'" (buffer-string)))))
 
 (defun comics-edit-missing ()
   (interactive)
@@ -171,6 +177,34 @@
       (pp data (current-buffer))
       (write-region (point-min) (point-max)
 		    (comics-file publisher)))))
+
+(defun comics-visit ()
+  (interactive)
+  (let ((elem (get-text-property (point) 'data)))
+    (browse-url (format "http://comics.org%s" (getf elem :url)))))
+
+(defun comics-count ()
+  (interactive)
+  (let ((hidden 0)
+	(pending 0)
+	(missings 0)
+	(ok 0))
+    (dolist (elem comics-data)
+      (let ((missing (getf elem :missing "")))
+	(cond
+	 ((string-match "=" missing)
+	  (incf pending))
+	 ((equal missing "+")
+	  (incf hidden))
+	 ((equal missing "-")
+	  (incf ok))
+	 ((equal missing "")
+	  (incf missings))
+	 (t
+	  (incf missings)))))
+    (message "%d pending, %d hidden, %d missing, %d ok, %d total"
+	     pending hidden missings ok
+	     (+ pending missings ok))))
 
 (provide 'comics)
 
