@@ -80,13 +80,13 @@
 		       ((string-match "=" missing)
 			"orange")
 		       ((equal missing "+")
-			"#606060")
+			"#006000")
 		       ((equal missing "-")
-			"#ffffff")
+			"#00b000")
 		       ((equal missing "")
-			"red")
+			"#ff0000")
 		       (t
-			"#00a000")))))))
+			"#c00000")))))))
 
 (defun comics-limit (string length)
   (unless string
@@ -146,15 +146,18 @@
 		 (let ((e1 (get-text-property (car k1) 'data))
 		       (e2 (get-text-property (car k2) 'data)))
 		   (if comics-sort
-		       (string< (getf e1 :title) (getf e2 :title))
+		       (string< (comics-canon (getf e1 :title)) (comics-canon (getf e2 :title)))
 		     (string< (comics-date e1) (comics-date e2)))))))
   (setq comics-sort (not comics-sort)))
+
+(defun comics-canon (string)
+  (replace-regexp-in-string "^\\(A \\|The \\)" "" string))
 
 (defun comics-save-title ()
   (interactive)
   (let ((elem (get-text-property (point) 'data)))
     (with-temp-buffer
-      (insert (getf elem :title))
+      (insert (comics-canon (getf elem :title)))
       (copy-region-as-kill (point-min) (point-max))
       (message "Copied '%s'" (buffer-string)))))
 
