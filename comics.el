@@ -191,12 +191,14 @@
   (let ((hidden 0)
 	(pending 0)
 	(missings 0)
+	(shipping 0)
 	(ok 0))
     (dolist (elem comics-data)
       (let ((missing (getf elem :missing "")))
 	(cond
 	 ((string-match "=" missing)
-	  (incf pending))
+	  (incf pending)
+	  (incf shipping (comics-parse-shipping missing)))
 	 ((equal missing "+")
 	  (incf hidden))
 	 ((equal missing "-")
@@ -205,10 +207,39 @@
 	  (incf missings))
 	 (t
 	  (incf missings)))))
-    (message "%d pending, %d hidden, %d missing, %d ok, %d total"
-	     pending hidden missings ok
+    (message "%d pending, %s shipping, %d hidden, %d missing, %d ok, %d total"
+	     pending shipping hidden missings ok
 	     (+ pending missings ok))))
 
+(defun comics-parse-shipping (missing)
+  "Say how many comics are shipping.
+The format is \"1, 2=, 4\", \"1-4=\", \"(1, 4, 6-8)=\", where the =
+signifies that the number/range/parenthesised collection has been ordered."
+  (let ((shipping 0))
+    (with-temp-buffer
+      (insert missing)
+      (goto-char (point-min))
+      (while (re-search-forward "(\\([^)]+\\))=" nil t)
+	(let ((sub (match-string 1)))
+	  (replace-match "")
+	  (incf shipping (comics-parse-shipping
+			  (mapconcat
+			   (lambda (elem)
+			     (concat elem "="))
+			   (split-string sub "[, ]" t)
+			   ", ")))))
+      (dolist (elem (split-string (buffer-string) ", " t))
+	(when (string-match "=$" elem)
+	  (let ((range (mapcar
+			'string-to-number
+			(split-string (replace-regexp-in-string "=" "" elem)
+				      "[- ]"))))
+	    (incf shipping
+		  (if (= (length range) 2)
+		      (1+ (- (cadr range) (car range)))
+		    1)))))
+      shipping)))
+      
 (provide 'comics)
 
 ;;; comics.el ends here
