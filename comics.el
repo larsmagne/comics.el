@@ -83,6 +83,8 @@
 			"#006000")
 		       ((equal missing "-")
 			"#00b000")
+		       ((equal missing "!")
+			"#c0c0c0")
 		       ((equal missing "")
 			"#ff0000")
 		       (t
@@ -108,7 +110,7 @@
 			   :test 'equalp)))
     (if nmonth
 	(format "%04s-%02d" year (1+ nmonth))
-      (format "%04s-  " year))))		    
+      (format "%04s   " year))))		    
 
 (defun comics-issues (elem)
   (string-to-number (car (split-string (getf elem :issues)))))
@@ -119,6 +121,7 @@
     (define-key map "s" 'comics-sort)
     (define-key map "w" 'comics-save-title)
     (define-key map "m" 'comics-edit-missing)
+    (define-key map " " 'comics-toggle-mark)
     (define-key map "\r" 'comics-visit)
     (define-key map "=" 'comics-count)
     map))
@@ -146,7 +149,8 @@
 		 (let ((e1 (get-text-property (car k1) 'data))
 		       (e2 (get-text-property (car k2) 'data)))
 		   (if comics-sort
-		       (string< (comics-canon (getf e1 :title)) (comics-canon (getf e2 :title)))
+		       (string< (downcase (comics-canon (getf e1 :title)))
+				(downcase (comics-canon (getf e2 :title))))
 		     (string< (comics-date e1) (comics-date e2)))))))
   (setq comics-sort (not comics-sort)))
 
@@ -192,54 +196,90 @@
 	(pending 0)
 	(missings 0)
 	(shipping 0)
+	(got 0)
+	(no-got 0)
+	(totes 0)
 	(ok 0))
     (dolist (elem comics-data)
-      (let ((missing (getf elem :missing "")))
+      (let ((missing (getf elem :missing ""))
+	    (total (string-to-number
+		    (car (split-string (getf elem :issues ""))))))
+	(incf totes total)
 	(cond
 	 ((string-match "=" missing)
 	  (incf pending)
-	  (incf shipping (comics-parse-shipping missing)))
+	  (let ((have (comics-parse-shipping missing)))
+	    (incf shipping (car have))
+	    (incf no-got (cadr have))
+	    (incf got (- total (car have) (cadr have)))))
 	 ((equal missing "+")
 	  (incf hidden))
-	 ((equal missing "-")
-	  (incf ok))
+	 ((or (equal missing "-")
+	      (equal missing "!"))
+	  (incf ok)
+	  (incf got total))
 	 ((equal missing "")
-	  (incf missings))
+	  (incf missings)
+	  (incf no-got total))
 	 (t
+	  (let ((no-have (cadr (comics-parse-shipping missing))))
+	    (incf got (- total no-have))
+	    (incf no-got no-have))
 	  (incf missings)))))
-    (message "%d pending, %s shipping, %d hidden, %d missing, %d ok, %d total"
-	     pending shipping hidden missings ok
-	     (+ pending missings ok))))
+    (message "%d have, %d shipping, %d no-have, %d total issues,\n%d ok, %d pending, %d hidden, %d missing, %d total series"
+	     got shipping no-got totes
+	     ok pending hidden missings (+ pending missings ok))))
 
 (defun comics-parse-shipping (missing)
   "Say how many comics are shipping.
 The format is \"1, 2=, 4\", \"1-4=\", \"(1, 4, 6-8)=\", where the =
 signifies that the number/range/parenthesised collection has been ordered."
-  (let ((shipping 0))
+  (let ((shipping 0)
+	(no-shipping 0))
     (with-temp-buffer
       (insert missing)
       (goto-char (point-min))
       (while (re-search-forward "(\\([^)]+\\))=" nil t)
 	(let ((sub (match-string 1)))
 	  (replace-match "")
-	  (incf shipping (comics-parse-shipping
-			  (mapconcat
-			   (lambda (elem)
-			     (concat elem "="))
-			   (split-string sub "[, ]" t)
-			   ", ")))))
+	  (let ((elem (comics-parse-shipping
+		       (mapconcat
+			(lambda (elem)
+			  (concat elem "="))
+			(split-string sub "[, ]" t)
+			", "))))
+	    (incf shipping (car elem))
+	    (incf no-shipping (cadr elem)))))
       (dolist (elem (split-string (buffer-string) ", " t))
-	(when (string-match "=$" elem)
-	  (let ((range (mapcar
-			'string-to-number
-			(split-string (replace-regexp-in-string "=" "" elem)
-				      "[- ]"))))
-	    (incf shipping
-		  (if (= (length range) 2)
-		      (1+ (- (cadr range) (car range)))
-		    1)))))
-      shipping)))
-      
+	(let* ((range (mapcar
+		       'string-to-number
+		       (split-string (replace-regexp-in-string "=" "" elem)
+				     "[- ]")))
+	       (count (if (= (length range) 2)
+			  (1+ (- (cadr range) (car range)))
+			1)))
+	  (if (string-match "=$" elem)
+	      (incf shipping count)
+	    (incf no-shipping count))))
+      (list shipping no-shipping))))
+
+(defvar comics-marks nil)
+
+(defun comics-toggle-mark ()
+  (interactive)
+  (let ((elem (get-text-property (point) 'data))
+	(inhibit-read-only t))
+    (save-excursion
+      (beginning-of-line)
+      (forward-char 7)
+      (delete-region (point) (1+ (point)))
+      (if (memq elem comics-marks)
+	  (progn
+	    (insert " ")
+	    (setq comics-marks (delq elem comics-marks)))
+	(insert "*")
+	(setq comics-marks (append comics-marks (list elem)))))))
+
 (provide 'comics)
 
 ;;; comics.el ends here
