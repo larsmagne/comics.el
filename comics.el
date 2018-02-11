@@ -123,6 +123,7 @@
     (define-key map "m" 'comics-edit-missing)
     (define-key map " " 'comics-toggle-mark)
     (define-key map "\r" 'comics-visit)
+    (define-key map "!" 'comics-make-marked-read)
     (define-key map "=" 'comics-count)
     map))
 
@@ -279,6 +280,30 @@ signifies that the number/range/parenthesised collection has been ordered."
 	    (setq comics-marks (delq elem comics-marks)))
 	(insert "*")
 	(setq comics-marks (append comics-marks (list elem)))))))
+
+(defun comics-make-marked-read ()
+  "Change the missing list to \"!\" on the marked comics."
+  (interactive)
+  (dolist (elem (or comics-marks
+		    (list (get-text-property (point) 'data))))
+    (plist-put elem :missing "!")
+    (comics-update elem))
+  (setq comics-marks nil)
+  (comics-save))
+
+(defun comics-update (elem)
+  (save-excursion
+    (goto-char (point-min))
+    (while (and (not (eobp))
+		(setq current (get-text-property (point) 'data))
+		(not (equal (plist-get current :url)
+			    (plist-get elem :url))))
+      (forward-line 1))
+    (when (get-text-property (point) 'data)
+      (let ((inhibit-read-only t))
+	(delete-region (line-beginning-position)
+		       (line-beginning-position 2))
+	(comics-line elem)))))
 
 (provide 'comics)
 
