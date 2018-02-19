@@ -200,6 +200,7 @@
 	(got 0)
 	(no-got 0)
 	(totes 0)
+	(read 0)
 	(ok 0))
     (dolist (elem comics-data)
       (let ((missing (getf elem :missing ""))
@@ -215,8 +216,11 @@
 	    (incf got (- total (car have) (cadr have)))))
 	 ((equal missing "+")
 	  (incf hidden))
-	 ((or (equal missing "-")
-	      (equal missing "!"))
+	 ((equal missing "-")
+	  (incf ok)
+	  (incf got total))
+	 ((equal missing "!")
+	  (incf read total)
 	  (incf ok)
 	  (incf got total))
 	 ((equal missing "")
@@ -227,8 +231,8 @@
 	    (incf got (- total no-have))
 	    (incf no-got no-have))
 	  (incf missings)))))
-    (message "%d have, %d shipping, %d no-have, %d total issues,\n%d ok, %d pending, %d hidden, %d missing, %d total series"
-	     got shipping no-got totes
+    (message "%d have, %d shipping, %d no-have, %d read, %d total issues,\n%d ok, %d pending, %d hidden, %d missing, %d total series"
+	     got shipping no-got read totes
 	     ok pending hidden missings (+ pending missings ok))))
 
 (defun comics-parse-shipping (missing)
