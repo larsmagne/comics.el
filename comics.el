@@ -80,7 +80,7 @@
 		       ((string-match "=" missing)
 			"orange")
 		       ((equal missing "+")
-			"#006000")
+			"#808080")
 		       ((equal missing "-")
 			"#00b000")
 		       ((equal missing "!")
@@ -138,6 +138,7 @@
   (setq-local comics-publisher nil))
 
 (defun comics-sort ()
+  "Toggle sorting by name or date."
   (interactive)
   (let ((inhibit-read-only t))
     (goto-char (point-min))
@@ -201,6 +202,7 @@
 	(no-got 0)
 	(totes 0)
 	(read 0)
+	(read-series 0)
 	(ok 0))
     (dolist (elem comics-data)
       (let ((missing (getf elem :missing ""))
@@ -215,11 +217,14 @@
 	    (incf no-got (cadr have))
 	    (incf got (- total (car have) (cadr have)))))
 	 ((equal missing "+")
+	  (incf read total)
+	  (incf read-series)
 	  (incf hidden))
 	 ((equal missing "-")
 	  (incf ok)
 	  (incf got total))
 	 ((equal missing "!")
+	  (incf read-series)
 	  (incf read total)
 	  (incf ok)
 	  (incf got total))
@@ -231,9 +236,9 @@
 	    (incf got (- total no-have))
 	    (incf no-got no-have))
 	  (incf missings)))))
-    (message "%d have, %d shipping, %d no-have, %d read, %d total issues,\n%d ok, %d pending, %d hidden, %d missing, %d total series"
+    (message "%d have, %d shipping, %d no-have, %d read, %d total issues,\n%d ok, %d pending, %d hidden, %d missing, %d read, %d total series"
 	     got shipping no-got read totes
-	     ok pending hidden missings (+ pending missings ok))))
+	     ok pending hidden missings read-series (+ pending missings ok))))
 
 (defun comics-parse-shipping (missing)
   "Say how many comics are shipping.
