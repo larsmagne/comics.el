@@ -25,8 +25,11 @@
 
 ;;; Code:
 
+;; URL for imprint
+;; https://www.comics.org/search/advanced/process/?target=series&method=icontains&logic=False&keywords=&title=&feature=&job_number=&pages=&pages_uncertain=&script=&pencils=&inks=&colors=&letters=&story_editing=&first_line=&characters=&synopsis=&reprint_notes=&story_reprinted=&notes=&issues=&volume=&issue_title=&variant_name=&is_variant=&issue_date=&indicia_frequency=&price=&issue_pages=&issue_pages_uncertain=&issue_editing=&isbn=&barcode=&rating=&issue_notes=&issue_reprinted=&is_indexed=&order1=date&order2=date&order3=&start_date=&end_date=&updated_since=&pub_name=marvel&pub_notes=&brand_group=%s&brand_emblem=&brand_notes=&indicia_publisher=&is_surrogate=&ind_pub_notes=&series=&series_year_began=&series_notes=&tracking_notes=&issue_count=&is_comics=&color=&dimensions=&paper_stock=&binding=&publishing_format=&page=%d
+
 (defun comics-gather-data (publisher times)
-  (let* ((url "https://www.comics.org/search/advanced/process/?ind_pub_notes=&rating=&pages_uncertain=&letters=&brand_group=&series=&binding=&feature=&issue_notes=&synopsis=&colors=&keywords=&isbn=&tracking_notes=&job_number=&issues=&paper_stock=&issue_reprinted=&dimensions=&title=&is_comics=&series_notes=&indicia_publisher=&pub_name=%s&is_indexed=&reprint_notes=&start_date=&pub_notes=&inks=&issue_title=&end_date=&variant_name=&brand_notes=&price=&barcode=&issue_date=&volume=&brand_emblem=&pages=&characters=&genre=&issue_pages=&order2=series&order3=&color=&order1=date&pencils=&target=series&publishing_format=&story_editing=&notes=&is_surrogate=&issue_count=&issue_pages_uncertain=&method=icontains&script=&issue_editing=&logic=False&is_variant=&series_year_began=&indicia_frequency=&story_reprinted=&page=%d")
+  (let* ((url "https://www.comics.org/search/advanced/process/?ind_pub_notes=&rating=&pages_uncertain=&letters=&characters=&brand_group=&series=&binding=&indicia_frequency=&issue_notes=&synopsis=&colors=&keywords=&first_line=&tracking_notes=&job_number=&issues=&issue_date=&issue_reprinted=&dimensions=&title=&is_comics=&feature=&indicia_publisher=&pub_name=%s&is_indexed=&reprint_notes=&method=icontains&pub_notes=&inks=&issue_title=&end_date=&variant_name=&series_notes=&price=&barcode=&paper_stock=&volume=&brand_emblem=&pages=&isbn=&issue_pages_uncertain=&issue_pages=&order2=date&order3=&color=&order1=date&pencils=&target=series&publishing_format=&story_editing=&notes=&is_surrogate=&issue_count=&issue_editing=&start_date=&script=&updated_since=&logic=False&is_variant=&series_year_began=&brand_notes=&story_reprinted=&page=%d")
 	 (data
 	  (loop with dom
 		for page from 1 upto times
@@ -314,6 +317,7 @@ signifies that the number/range/parenthesised collection has been ordered."
     (plist-put elem :missing "!")
     (comics-update elem))
   (setq comics-marks nil)
+  (forward-line 1)
   (comics-save))
 
 (defun comics-update (elem)
