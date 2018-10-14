@@ -51,7 +51,7 @@
 		    (comics-file publisher)))))
 
 (defun comics-file (publisher)
-  (format "~/.emacs.d/%s.data" publisher))
+  (format "~/.emacs.d/comics/%s.data" publisher))
 
 (defun comics (publisher)
   (switch-to-buffer "*comics*")
