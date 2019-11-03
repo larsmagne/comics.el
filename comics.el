@@ -122,6 +122,7 @@
   (let ((map (make-keymap)))
     (set-keymap-parent map special-mode-map)
     (define-key map "s" 'comics-sort)
+    (define-key map "n" 'comics-sort-by-quantity)
     (define-key map "w" 'comics-save-title)
     (define-key map "d" 'comics-edit-date)
     (define-key map "m" 'comics-edit-missing)
@@ -159,6 +160,25 @@
 				(downcase (comics-canon (getf e2 :title))))
 		     (string< (comics-date e1) (comics-date e2)))))))
   (setq comics-sort (not comics-sort)))
+
+(defun comics-sort-by-quantity (&optional no-have)
+  "Sort by quantity.
+If NO-HAVE (the prefix), sort the no-haves first."
+  (interactive)
+  (let ((inhibit-read-only t))
+    (goto-char (point-min))
+    (sort-subr nil (lambda ()
+		     )
+	       (lambda ()
+		 (forward-line 1))
+	       nil nil
+	       (lambda (k1 k2)
+		 (let ((e1 (get-text-property (car k1) 'data))
+		       (e2 (get-text-property (car k2) 'data)))
+		   (< (string-to-number
+			(car (split-string (getf e1 :issues ""))))
+		       (string-to-number
+			(car (split-string (getf e2 :issues ""))))))))))
 
 (defun comics-canon (string)
   (replace-regexp-in-string "^\\(A \\|The \\)" "" string))
