@@ -122,12 +122,15 @@
   (let ((map (make-keymap)))
     (set-keymap-parent map special-mode-map)
     (define-key map "s" 'comics-sort)
-    (define-key map "n" 'comics-sort-by-quantity)
+    (define-key map "Q" 'comics-sort-by-quantity)
     (define-key map "w" 'comics-save-title)
     (define-key map "d" 'comics-edit-date)
     (define-key map "m" 'comics-edit-missing)
+    (define-key map "a" 'comics-add)
+    (define-key map "n" 'comics-edit-shipping)
     (define-key map " " 'comics-toggle-mark)
     (define-key map "\r" 'comics-visit)
+    (define-key map "&" 'comics-visit-externally)
     (define-key map "!" 'comics-make-marked-read)
     (define-key map "=" 'comics-count)
     map))
@@ -203,6 +206,37 @@ If NO-HAVE (the prefix), sort the no-haves first."
 		   (line-beginning-position 2))
     (comics-line elem)))
 
+(defun comics-add (title year issues)a
+  (interactive "sTitle: \nsYear: \nsIssues: ")
+  (let ((elem (list :publisher (getf (get-text-property (point) 'data)
+				     :publisher)
+		    :title title
+		    :url ""
+		    :year year
+		    :issues (format "%s issues" issues)
+		    :date year
+		    :missing "*"))
+	(inhibit-read-only t))
+    (push elem comics-data)
+    (comics-save)
+    (beginning-of-line)
+    (comics-line elem)))		    
+
+(defun comics-edit-shipping ()
+  (interactive)
+  (let* ((elem (get-text-property (point) 'data))
+	 (total (string-to-number
+		 (car (split-string (getf elem :issues "")))))
+	 (inhibit-read-only t))
+    (plist-put elem :missing
+	       (if (= total 1)
+		   "1="
+		 (format "1-%d=" total)))
+    (comics-save)
+    (delete-region (line-beginning-position)
+		   (line-beginning-position 2))
+    (comics-line elem)))
+
 (defun comics-edit-date ()
   (interactive)
   (let* ((elem (get-text-property (point) 'data))
@@ -228,6 +262,13 @@ If NO-HAVE (the prefix), sort the no-haves first."
 (defun comics-visit ()
   (interactive)
   (let ((elem (get-text-property (point) 'data)))
+    (browse-url (format "http://comics.org%s" (getf elem :url)))))
+
+(defun comics-visit-externally ()
+  (interactive)
+  (let ((elem (get-text-property (point) 'data))
+	(browse-url-browser-function
+	 browse-url-secondary-browser-function))
     (browse-url (format "http://comics.org%s" (getf elem :url)))))
 
 (defun comics-count ()
