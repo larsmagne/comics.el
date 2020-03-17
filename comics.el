@@ -39,12 +39,16 @@
 		  (setq dom (libxml-parse-html-region (point) (point-max)))
 		  (loop for line in (cdr (dom-by-tag (dom-by-tag dom 'table) 'tr))
 			for tds = (dom-non-text-children line)
-			collect (list :publisher (string-trim (dom-texts (nth 1 tds)))
-				      :title (string-trim (dom-texts (nth 2 tds)))
-				      :url (dom-attr (dom-by-tag (nth 2 tds) 'a) 'href)
-				      :year (string-trim (dom-texts (nth 3 tds)))
-				      :issues (string-trim (dom-texts (nth 4 tds)))
-				      :date (string-trim (dom-texts (nth 6 tds)))))))))
+			collect
+			(list :publisher (string-trim (dom-texts (nth 1 tds)))
+			      :title (string-trim
+				      (replace-regexp-in-string
+				       "\\[.\\]" ""
+				       (dom-texts (nth 2 tds))))
+			      :url (dom-attr (dom-by-tag (nth 2 tds) 'a) 'href)
+			      :year (string-trim (dom-texts (nth 3 tds)))
+			      :issues (string-trim (dom-texts (nth 4 tds)))
+			      :date (string-trim (dom-texts (nth 6 tds)))))))))
     (with-temp-buffer
       (pp data (current-buffer))
       (write-region (point-min) (point-max)
@@ -54,7 +58,7 @@
   (format "~/.emacs.d/comics/%s.data" publisher))
 
 (defun comics (publisher)
-  (switch-to-buffer "*comics*")
+  (switch-to-buffer (format "*%s*" publisher))
   (comics-mode)
   (let ((inhibit-read-only t)
 	(data (with-temp-buffer
@@ -128,6 +132,8 @@
     (define-key map "m" 'comics-edit-missing)
     (define-key map "a" 'comics-add)
     (define-key map "n" 'comics-edit-shipping)
+    (define-key map "M" 'comics-search-mile-high)
+    (define-key map "x" 'comics-edit-got-all)
     (define-key map " " 'comics-toggle-mark)
     (define-key map "\r" 'comics-visit)
     (define-key map "&" 'comics-visit-externally)
@@ -206,12 +212,12 @@ If NO-HAVE (the prefix), sort the no-haves first."
 		   (line-beginning-position 2))
     (comics-line elem)))
 
-(defun comics-add (title year issues)a
-  (interactive "sTitle: \nsYear: \nsIssues: ")
+(defun comics-add (title year issues url)
+  (interactive "sTitle: \nsYear: \nsIssues: \nsURL: ")
   (let ((elem (list :publisher (getf (get-text-property (point) 'data)
 				     :publisher)
 		    :title title
-		    :url ""
+		    :url url
 		    :year year
 		    :issues (format "%s issues" issues)
 		    :date year
@@ -232,6 +238,18 @@ If NO-HAVE (the prefix), sort the no-haves first."
 	       (if (= total 1)
 		   "1="
 		 (format "1-%d=" total)))
+    (comics-save)
+    (delete-region (line-beginning-position)
+		   (line-beginning-position 2))
+    (comics-line elem)))
+
+(defun comics-edit-got-all ()
+  (interactive)
+  (let* ((elem (get-text-property (point) 'data))
+	 (total (string-to-number
+		 (car (split-string (getf elem :issues "")))))
+	 (inhibit-read-only t))
+    (plist-put elem :missing "-")
     (comics-save)
     (delete-region (line-beginning-position)
 		   (line-beginning-position 2))
@@ -396,6 +414,15 @@ signifies that the number/range/parenthesised collection has been ordered."
 	(delete-region (line-beginning-position)
 		       (line-beginning-position 2))
 	(comics-line elem)))))
+
+(defun comics-search-mile-high ()
+  (interactive)
+  (let ((elem (get-text-property (point) 'data))
+	(browse-url-browser-function
+	 browse-url-secondary-browser-function))
+    (browse-url
+     (format "https://www.milehighcomics.com/mcgi-bin/search.cgi?title=%s"
+	     (comics-canon (getf elem :title))))))
 
 (provide 'comics)
 
