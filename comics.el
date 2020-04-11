@@ -334,8 +334,8 @@ If NO-HAVE (the prefix), sort the no-haves first."
 	    (incf no-got no-have))
 	  (incf unread-series)
 	  (incf missings)))))
-    (message "%d have, %d shipping, %d no-have, %d read, %d total issues,\n%d ok, %d pending, %d hidden, %d missing, %d unread, %d total series"
-	     got shipping no-got read totes
+    (message "%d have, %d shipping, %d no-have, %d read, %d unread, %d total issues,\n%d ok, %d pending, %d hidden, %d missing, %d unread, %d total series"
+	     got shipping no-got read (- got read) totes
 	     ok pending hidden missings unread-series (+ pending missings ok))))
 
 (defun comics-parse-shipping (missing)
