@@ -133,6 +133,8 @@
     (define-key map "a" 'comics-add)
     (define-key map "n" 'comics-edit-shipping)
     (define-key map "M" 'comics-search-mile-high)
+    (define-key map "A" 'comics-search-all)
+    (define-key map "S" 'comics-search)
     (define-key map "x" 'comics-edit-got-all)
     (define-key map " " 'comics-toggle-mark)
     (define-key map "\r" 'comics-visit)
@@ -280,14 +282,14 @@ If NO-HAVE (the prefix), sort the no-haves first."
 (defun comics-visit ()
   (interactive)
   (let ((elem (get-text-property (point) 'data)))
-    (browse-url (format "http://comics.org%s" (getf elem :url)))))
+    (browse-url (format "https://comics.org%s" (getf elem :url)))))
 
 (defun comics-visit-externally ()
   (interactive)
   (let ((elem (get-text-property (point) 'data))
 	(browse-url-browser-function
 	 browse-url-secondary-browser-function))
-    (browse-url (format "http://comics.org%s" (getf elem :url)))))
+    (browse-url (format "https://comics.org%s/covers/" (getf elem :url)))))
 
 (defun comics-count ()
   (interactive)
@@ -423,6 +425,35 @@ signifies that the number/range/parenthesised collection has been ordered."
     (browse-url
      (format "https://www.milehighcomics.com/mcgi-bin/search.cgi?title=%s"
 	     (comics-canon (getf elem :title))))))
+
+(defun comics-search-all ()
+  (interactive)
+  (let ((elem (get-text-property (point) 'data))
+	(browse-url-browser-function
+	 browse-url-secondary-browser-function))
+    (browse-url
+     (format "https://www.milehighcomics.com/mcgi-bin/search.cgi?title=%s"
+	     (comics-canon (getf elem :title))))
+    (browse-url
+     (format "https://www.mycomicshop.com/search?q=%s"
+	     (comics-canon (getf elem :title))))
+    (browse-url
+     (format "https://www.ebay.com/sch/m.html?_ssn=cyberspacecomics&LH_PrefLoc=&_from=R40&_trksid=p2499338.m570.l1313.TR12.TRC2.A0.H0.Xpteranoman.TRS0&_nkw=%s&_sacat=0"
+	     (comics-canon (getf elem :title))))))
+
+(defun comics-search (string)
+  (interactive "sSearch for: ")
+  (let ((browse-url-browser-function
+	 browse-url-secondary-browser-function))
+    (browse-url
+     (format "https://www.milehighcomics.com/mcgi-bin/search.cgi?title=%s"
+	     string))
+    (browse-url
+     (format "https://www.mycomicshop.com/search?q=%s"
+	     string))
+    (browse-url
+     (format "http://www.ebaystores.com/mycomicshop?submit=SEARCH&_nkw=%s&"
+	     string))))
 
 (provide 'comics)
 
