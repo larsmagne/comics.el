@@ -45,15 +45,15 @@
 	     (cl-loop for line in (cdr (dom-by-tag (dom-by-tag dom 'table) 'tr))
 		      for tds = (dom-non-text-children line)
 		      collect
-		      (list :publisher (string-trim (dom-texts (nth 1 tds)))
+		      (list :publisher (string-trim (dom-texts (nth 0 tds)))
 			    :title (string-trim
 				    (replace-regexp-in-string
 				     "\\[.\\]" ""
-				     (dom-texts (nth 2 tds))))
-			    :url (dom-attr (dom-by-tag (nth 2 tds) 'a) 'href)
-			    :year (string-trim (dom-texts (nth 3 tds)))
-			    :issues (string-trim (dom-texts (nth 4 tds)))
-			    :date (string-trim (dom-texts (nth 6 tds)))))))))
+				     (dom-texts (nth 1 tds))))
+			    :url (dom-attr (dom-by-tag (nth 1 tds) 'a) 'href)
+			    :year (string-trim (dom-texts (nth 2 tds)))
+			    :issues (string-trim (dom-texts (nth 3 tds)))
+			    :date (string-trim (dom-texts (nth 5 tds)))))))))
     (with-temp-buffer
       (pp data (current-buffer))
       (write-region (point-min) (point-max)
